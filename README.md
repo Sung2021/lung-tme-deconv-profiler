@@ -31,6 +31,7 @@ Raw counts → Normalization → QP Deconvolution → Stage Profiling → Outlie
 
 ## Dependencies
 
+### R packages
 | Package      | Purpose                        |
 |-------------|--------------------------------|
 | `quadprog`  | QP-based deconvolution         |
@@ -40,6 +41,37 @@ Raw counts → Normalization → QP Deconvolution → Stage Profiling → Outlie
 | `yaml`      | Read config.yaml               |
 | `rmarkdown` | Report rendering               |
 | `knitr`     | Report knitting                |
+
+### Python scripts (`python/`)
+
+| Script                   | Purpose                                                              |
+|-------------------------|----------------------------------------------------------------------|
+| `run_pipeline.py`       | Orchestrate the full pipeline: runs R scripts 01–05 in order         |
+| `deconvolution_alt.py`  | Alternative deconvolution: NNLS (supervised) + NMF (unsupervised)   |
+
+Install Python dependencies:
+```bash
+pip install -r python/requirements.txt
+```
+
+Run the full pipeline:
+```bash
+python python/run_pipeline.py
+```
+
+Run specific steps only:
+```bash
+python python/run_pipeline.py --steps 1 2
+```
+
+Run alternative deconvolution:
+```bash
+python python/deconvolution_alt.py
+```
+
+**NNLS vs NMF:**
+- **NNLS** (Non-Negative Least Squares): supervised, reference-based — Python equivalent of the QP approach in `02_deconvolution.R`. Outputs `data/processed/cell_proportions_nnls.csv`.
+- **NMF** (Non-negative Matrix Factorization): unsupervised, reference-free — discovers cell type components from data alone. Useful when a validated signature matrix is unavailable. Outputs `data/processed/cell_proportions_nmf.csv`.
 
 ## Reproducibility
 
