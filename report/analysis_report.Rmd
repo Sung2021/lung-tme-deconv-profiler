@@ -1,0 +1,93 @@
+---
+title: "TME-Resolution: Cellular Composition Index for Lung Cancer"
+author: "TME Analysis Pipeline"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+set.seed(42)
+config <- yaml::read_yaml("../config.yaml")
+```
+
+## 1. Background
+
+Traditional TNM staging classifies lung cancer patients based on tumor size, lymph node involvement, and distant metastasis. While useful, this system does not account for the cellular composition of the **Tumor Microenvironment (TME)** — the mix of cancer cells, immune cells, and stromal cells surrounding the tumor.
+
+Recent studies have shown that the TME composition is a strong predictor of immunotherapy response and disease recurrence. Tumors classified as "Immune Hot" (high immune infiltration) tend to respond better to checkpoint inhibitors, while "Immune Cold" tumors may not. Furthermore, some Stage 1 patients with abnormal TME profiles may harbor a hidden recurrence risk that TNM staging alone cannot detect.
+
+This project uses **bulk RNA-seq deconvolution** to estimate TME cellular composition and derives two clinically actionable scores to address these gaps.
+
+## 2. Methods
+
+The analysis pipeline consists of five sequential steps, with all parameters centralized in `config.yaml`:
+
+1. **Preprocessing** (`01_preprocessing.R`): Filter low-expression genes and normalize raw counts to log2 CPM.
+2. **Deconvolution** (`02_deconvolution.R`): Quadratic programming (QP) to estimate Cancer, Immune, and Stroma proportions per sample using a reference signature matrix.
+3. **Stage Profiling** (`03_stage_profiling.R`): Compute mean/SD of cell type proportions per Stage; test differences via one-way ANOVA.
+4. **Outlier Detection** (`04_outlier_detection.R`): Identify samples with abnormal TME composition within their Stage group using Mahalanobis distance (threshold: `r config$thresholds$outlier_percentile`th percentile).
+5. **Scoring** (`05_scoring.R`): Compute Immune Response Score (cutoff: `r config$thresholds$immune_score_cutoff`) and Recurrence Risk Score (ratio threshold: `r config$thresholds$stroma_risk_ratio`).
+
+## 3. Results
+
+### Cell Type Composition
+
+![Cell Type Composition per Sample](../results/figures/cell_composition_barplot.png)
+
+### Stage-wise Comparison
+
+![Cell Type Proportions by Stage](../results/figures/stage_boxplot.png)
+
+```{r stage-table}
+stage_profiles <- read.csv(paste0("../", config$paths$stage_profiles), check.names = FALSE)
+knitr::kable(stage_profiles, caption = "Stage-wise Cell Type Summary (with ANOVA p-values)", digits = 4)
+```
+
+### Outlier Detection
+
+![Immune vs Stroma — Outliers Highlighted](../results/figures/outlier_scatter.png)
+
+```{r outlier-summary}
+outliers <- read.csv(paste0("../", config$paths$outliers), check.names = FALSE)
+cat("Total outliers detected:", sum(outliers$OutlierFlag), "\n")
+cat("Hidden High-Risk (Stage 1):", sum(outliers$RiskLabel == "Hidden_High_Risk"), "\n")
+```
+
+## 4. Patient Score Summary
+
+```{r score-table}
+scores <- read.csv(paste0("../", config$paths$patient_scores), check.names = FALSE)
+knitr::kable(head(scores, 10), caption = "Patient Score Report Card (Top 10)", digits = 3)
+```
+
+### Example Patient Report Card
+
+```{r example-card}
+ex <- scores[1, ]
+cat("SampleID:         ", ex$SampleID, "\n")
+cat("Stage:            ", ex$Stage, "\n")
+cat("Immune Score:     ", round(ex$ImmuneScore, 3), " [", ex$ImmuneFlag, "]\n")
+cat("Recurrence Score: ", round(ex$RecurrenceScore, 3), " [", ex$RecurrenceFlag, "]\n")
+cat("Outlier Flag:     ", ex$OutlierFlag, "\n")
+cat("Risk Summary:     ", ex$RiskSummary, "\n")
+```
+
+## 5. Interpretation
+
+**Immune Cold vs Hot Tumors:**
+
+- Patients with **Immune Score < `r config$thresholds$immune_score_cutoff`** are classified as *Immune Cold*, indicating low immune infiltration relative to cancer cell proportion. These patients may benefit less from immunotherapy and could be candidates for combination therapies.
+- Patients with adequate Immune Scores are classified as *Immune Hot*, suggesting a potentially responsive tumor microenvironment.
+
+**Hidden High-Risk Identification:**
+
+- Among Stage 1 patients, those flagged as **outliers** (Mahalanobis distance > `r config$thresholds$outlier_percentile`th percentile) exhibit TME profiles atypical for their stage. These *Hidden High-Risk* patients may carry elevated recurrence risk despite favorable TNM classification and warrant closer surveillance or adjuvant therapy consideration.
+
+**Recurrence Risk Score:**
+
+- Patients with **Recurrence Risk Score > `r config$thresholds$stroma_risk_ratio`** have disproportionately high stromal content relative to their stage average, a pattern associated with tumor-promoting fibroblast activity and potential recurrence.

@@ -1,0 +1,13 @@
+thresholds:
+  immune_score_cutoff: 0.20       # Immune / (Immune + Cancer) minimum
+  stroma_risk_ratio: 1.50         # Patient Stroma% / Stage-mean Stroma%
+  outlier_percentile: 95          # Mahalanobis distance cutoff
+
+paths:
+  raw_counts: data/raw/counts.csv
+  signature_matrix: data/reference/sig_matrix.csv
+  normalized_expr: data/processed/expr_normalized.csv
+  cell_proportions: data/processed/cell_proportions.csv
+  stage_profiles: results/tables/stage_profiles.csv
+  outliers: results/tables/outliers_flagged.csv
+  patient_scores: results/tables/patient_scores.csv
