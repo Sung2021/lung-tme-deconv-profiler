@@ -1,4 +1,6 @@
-# TME-Resolution: Cellular Composition Index for Lung Cancer
+# lung-tme-deconv-profiler
+
+> TME-Resolution: Cellular Composition Index for Lung Cancer
 
 ## Background
 
