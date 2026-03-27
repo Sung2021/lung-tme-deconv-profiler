@@ -32,7 +32,8 @@ with open(CONFIG_PATH) as f:
 
 R_SCRIPTS = [
     ROOT / "R" / "01_preprocessing.R",
-    ROOT / "R" / "02_deconvolution.R",
+    ROOT / "R" / "02a_signature_matrix.R",
+    ROOT / "R" / "02b_deconvolution.R",
     ROOT / "R" / "03_stage_profiling.R",
     ROOT / "R" / "04_outlier_detection.R",
     ROOT / "R" / "05_scoring.R",
@@ -47,7 +48,15 @@ parser.add_argument(
     nargs="+",
     type=int,
     metavar="N",
-    help="Step numbers to run (1-5). Default: all steps.",
+    help=(
+        "Step numbers to run (1-6). Default: all steps.\n"
+        "  1: 01_preprocessing.R\n"
+        "  2: 02a_signature_matrix.R\n"
+        "  3: 02b_deconvolution.R\n"
+        "  4: 03_stage_profiling.R\n"
+        "  5: 04_outlier_detection.R\n"
+        "  6: 05_scoring.R"
+    ),
 )
 parser.add_argument(
     "--rscript",

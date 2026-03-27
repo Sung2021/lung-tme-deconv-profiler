@@ -3,11 +3,19 @@ thresholds:
   stroma_risk_ratio: 1.50         # Patient Stroma% / Stage-mean Stroma%
   outlier_percentile: 95          # Mahalanobis distance cutoff
 
+biomart:
+  dataset: hsapiens_gene_ensembl   # Ensembl dataset (change for non-human: mmusculus_gene_ensembl etc.)
+  gene_id_type: hgnc_symbol         # rowname type in count matrix: hgnc_symbol | ensembl_gene_id
+
 paths:
   raw_counts: data/raw/counts.csv
   signature_matrix: data/reference/sig_matrix.csv
+  sig_matrix_validated: data/reference/sig_matrix_validated.csv
   normalized_expr: data/processed/expr_normalized.csv
   cell_proportions: data/processed/cell_proportions.csv
+  proportions_qp: data/processed/proportions_qp.csv
+  proportions_nnls: data/processed/proportions_nnls.csv
   stage_profiles: results/tables/stage_profiles.csv
   outliers: results/tables/outliers_flagged.csv
   patient_scores: results/tables/patient_scores.csv
+  method_comparison: results/figures/method_comparison.png
