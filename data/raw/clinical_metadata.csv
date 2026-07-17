@@ -1,0 +1,9 @@
+SampleID,Stage,ResponseGroup
+Sample_1,1,Responder
+Sample_2,1,Responder
+Sample_3,2,Stable
+Sample_4,2,Stable
+Sample_5,3,Progressor
+Sample_6,3,Progressor
+Sample_7,4,Progressor
+Sample_8,4,Progressor
