@@ -9,7 +9,7 @@ Traditional TNM staging classifies lung cancer patients based on tumor size, lym
 ## Pipeline Flowchart
 
 ```
-Raw counts → Normalization → QP Deconvolution → Stage Profiling → Outlier Detection → Scoring → Report
+Raw counts → Normalization → Signature validation → QP/NNLS deconvolution → Stage profiling → Outlier detection → Scoring → Report
 ```
 
 ## How to Run
@@ -21,11 +21,13 @@ Raw counts → Normalization → QP Deconvolution → Stage Profiling → Outlie
 2. Execute R scripts in order:
    ```
    Rscript R/01_preprocessing.R
-   Rscript R/02_deconvolution.R
+   Rscript R/02a_signature_matrix.R
+   Rscript R/02b_deconvolution.R
    Rscript R/03_stage_profiling.R
    Rscript R/04_outlier_detection.R
    Rscript R/05_scoring.R
    ```
+   `R/02_deconvolution.R` is kept only as a backward-compatible wrapper.
 3. Render the report:
    ```r
    rmarkdown::render("report/analysis_report.Rmd")
@@ -48,7 +50,7 @@ Raw counts → Normalization → QP Deconvolution → Stage Profiling → Outlie
 
 | Script                   | Purpose                                                              |
 |-------------------------|----------------------------------------------------------------------|
-| `run_pipeline.py`       | Orchestrate the full pipeline: runs R scripts 01–05 in order         |
+| `run_pipeline.py`       | Orchestrate the full pipeline: runs R scripts 01–05 with 02a/02b split |
 | `deconvolution_alt.py`  | Alternative deconvolution: NNLS (supervised) + NMF (unsupervised)   |
 
 Install Python dependencies:
@@ -72,7 +74,7 @@ python python/deconvolution_alt.py
 ```
 
 **NNLS vs NMF:**
-- **NNLS** (Non-Negative Least Squares): supervised, reference-based — Python equivalent of the QP approach in `02_deconvolution.R`. Outputs `data/processed/cell_proportions_nnls.csv`.
+- **NNLS** (Non-Negative Least Squares): supervised, reference-based — Python equivalent of the QP approach in `02b_deconvolution.R`. Outputs `data/processed/cell_proportions_nnls.csv`.
 - **NMF** (Non-negative Matrix Factorization): unsupervised, reference-free — discovers cell type components from data alone. Useful when a validated signature matrix is unavailable. Outputs `data/processed/cell_proportions_nmf.csv`.
 
 ## Reproducibility

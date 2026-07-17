@@ -4,6 +4,44 @@
 
 **lung-tme-deconv-profiler** is a modular, reproducible pipeline for decomposing bulk RNA-seq to estimate tumor microenvironment (TME) cellular composition and derive clinically actionable scoring metrics for lung cancer patients.
 
+## Project Layout
+
+```
+lung-tme-deconv-profiler/
+├── R/                 # Ordered R stages and the 02 wrapper shim
+├── python/            # Orchestrator and optional alternate deconvolution
+├── data/
+│   ├── raw/           # Input counts and sample metadata
+│   ├── reference/     # Signature matrices
+│   └── processed/     # Normalized matrices and cell proportions
+├── results/
+│   ├── tables/        # Stage profiles, outliers, patient scores
+│   └── figures/       # QC and comparison plots
+├── report/            # Renderable analysis report
+└── config.yaml        # Single source of truth for paths and thresholds
+```
+
+### Input Contract
+
+The pipeline assumes three inputs before Stage 1 starts:
+
+- `data/raw/counts.csv`: raw gene-by-sample count matrix with genes in rows and samples in columns
+- `data/reference/sig_matrix.csv`: reference signature matrix with the same gene ID type and normalization space as the expression matrix
+- `data/raw/*metadata*.csv`: sample metadata containing at minimum `SampleID` and `Stage`
+
+The current R implementation still contains placeholders in [R/03_stage_profiling.R](R/03_stage_profiling.R) and [R/04_outlier_detection.R](R/04_outlier_detection.R), so the metadata source must be made explicit before those stages can be run end-to-end.
+
+### Validation Gates
+
+Each stage should be treated as passing only if its local checks succeed:
+
+- Stage 1: gene retention after filtering is sufficient and TPM normalization completes
+- Stage 2a: signature matrix has non-zero variance and acceptable condition number
+- Stage 2b: QP and NNLS agree closely across cell types
+- Stage 3: each Stage group has enough samples to estimate mean and SD reliably
+- Stage 4: stage-wise covariance is invertible or ridge-stabilized before Mahalanobis scoring
+- Stage 5: patient scores are produced without missing joins across proportions, stage profiles, and outlier flags
+
 ### Pipeline Flow Diagram
 
 ```
@@ -30,7 +68,7 @@ Final Clinical Report
 
 ### **Stage 1: Preprocessing (01_preprocessing.R)**
 
-**Purpose:** Normalize raw RNA-seq raw counts to log₂ TPM (Transcripts Per Million).
+**Purpose:** Normalize raw RNA-seq counts to log₂ TPM (Transcripts Per Million).
 
 **Key Steps:**
 1. Load raw count matrix from `config$paths$raw_counts`
@@ -115,6 +153,10 @@ Subject to:
 - `results/figures/cell_composition_barplot.png` — stacked barplot: samples × cell types
 - `results/figures/method_comparison.png` — QP vs. NNLS scatter per cell type
 
+**Entry Point Note:**
+- `R/02_deconvolution.R` is a wrapper kept for backward compatibility
+- The canonical execution path is `02a_signature_matrix.R -> 02b_deconvolution.R`
+
 ---
 
 ### **Stage 3: Stage Profiling (03_stage_profiling.R)**
@@ -123,7 +165,7 @@ Subject to:
 
 **Key Steps:**
 1. Load cell proportions (from Stage 2b)
-2. Group samples by their TNM stage (if provided in sample metadata)
+2. Join sample metadata containing `SampleID` and `Stage`
 3. For each stage and cell type, compute:
    - Mean proportion
    - Std. deviation
@@ -146,12 +188,13 @@ Early-stage (Stage 1) tumors with high stroma burden (exceeding Stage 1 mean) ma
 
 **Key Steps:**
 1. Load cell proportions (3-dimensional vector: Cancer, Immune, Stroma)
-2. For each stage group, compute covariance matrix of proportions
-3. Compute Mahalanobis distance: `D²_M = (x - μ)ᵀ Σ⁻¹ (x - μ)`
+2. Join Stage metadata before grouping by stage
+3. For each stage group, compute covariance matrix of proportions
+4. Compute Mahalanobis distance: `D²_M = (x - μ)ᵀ Σ⁻¹ (x - μ)`
    - Accounts for correlations between cell types
    - More robust than Euclidean distance
-4. Set outlier threshold: `D²_M > percentile_p` (default: p = 95th percentile, configurable via `config$thresholds$outlier_percentile`)
-5. Flag samples with extreme values; assign risk labels
+5. Set outlier threshold: `D²_M > percentile_p` (default: p = 95th percentile, configurable via `config$thresholds$outlier_percentile`)
+6. Flag samples with extreme values; assign risk labels
 
 **Outputs:**
 - `results/tables/outliers_flagged.csv`
@@ -243,6 +286,19 @@ paths:
 - Each R script runs `yaml::read_yaml("config.yaml")` at start; no hardcoding
 - Python orchestrator (`python/run_pipeline.py`) also respects `config.yaml` for reproducibility
 - **To customize:** Edit `config.yaml` once; all stages adapt
+
+## Execution Order
+
+The canonical pipeline is:
+
+1. `R/01_preprocessing.R`
+2. `R/02a_signature_matrix.R`
+3. `R/02b_deconvolution.R`
+4. `R/03_stage_profiling.R`
+5. `R/04_outlier_detection.R`
+6. `R/05_scoring.R`
+
+`R/02_deconvolution.R` remains available only as a compatibility wrapper for older calls.
 
 ---
 
